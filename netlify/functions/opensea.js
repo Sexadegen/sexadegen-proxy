@@ -6,24 +6,25 @@ exports.handler = async function(event, context) {
   
   // 1. Get parameters
   const slug = params.slug || "anomaly-ai";
-  const tokenIds = params.token_ids; // e.g., "269,312,1801"
+  const tokenIds = params.token_ids; // e.g., "2137,2138"
   
   let url;
 
   // 2. Determine which OpenSea endpoint to use
   if (tokenIds) {
     /** * ROVERS PROJECT LOGIC: 
-     * Fetch specific rare items using the NFT endpoint. 
-     * Note: OpenSea v2 handles multiple IDs via comma or repeating params. 
-     * We'll fetch the base metadata (which includes listing info).
+     * To get specific NFTs (like #2137) instead of the first items (#1, #2),
+     * we use the /collection/{slug}/nfts endpoint with repeated token_ids.
      */
     const idList = tokenIds.split(',');
-    // OpenSea v2 uses repeating 'token_ids' parameters
+    
+    // OpenSea v2 requires repeating the key for each ID: ?token_ids=2137&token_ids=2138
     const idParams = idList.map(id => `token_ids=${id.trim()}`).join('&');
-    url = `https://api.opensea.io/api/v2/chain/ethereum/contract/0xe0e7f149959c6cac0ddc2cb4ab27942bffda1eb4/nfts?${idParams}`;
+    
+    url = `https://api.opensea.io/api/v2/collection/${slug}/nfts?${idParams}`;
   } else {
     /** * ANOMALY AI PROJECT LOGIC (Default): 
-     * Fetch general collection listings for floor prices.
+     * Stays exactly the same to avoid breaking your floor price sync.
      */
     const searchParams = new URLSearchParams(params);
     searchParams.delete("slug");
