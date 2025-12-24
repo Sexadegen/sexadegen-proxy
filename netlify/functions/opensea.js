@@ -4,33 +4,29 @@ exports.handler = async function(event, context) {
   const API_KEY = "cae072efedf0460d80b57358fcbb5a5e";
   const params = event.queryStringParameters || {};
   
-  // 1. Get parameters
   const slug = params.slug || "anomaly-ai";
   const tokenIds = params.token_ids; // e.g., "2137,2138"
   
   let url;
 
-  // 2. Determine which OpenSea endpoint to use
   if (tokenIds) {
-    /** * ROVERS PROJECT LOGIC: 
-     * To get specific NFTs (like #2137) instead of the first items (#1, #2),
-     * we use the /collection/{slug}/nfts endpoint with repeated token_ids.
-     */
+    // ROVERS LOGIC
     const idList = tokenIds.split(',');
-    
-    // OpenSea v2 requires repeating the key for each ID: ?token_ids=2137&token_ids=2138
+    // We use the 'contract' endpoint because it supports the 'token_ids' parameter properly.
+    // Replace the address below if your contract address is different
+    const CONTRACT_ADDRESS = "0xe0e7f149959c6cac0ddc2cb4ab27942bffda1eb4";
     const idParams = idList.map(id => `token_ids=${id.trim()}`).join('&');
     
-    url = `https://api.opensea.io/api/v2/collection/${slug}/nfts?${idParams}`;
+    url = `https://api.opensea.io/api/v2/chain/ethereum/contract/${CONTRACT_ADDRESS}/nfts?${idParams}`;
   } else {
-    /** * ANOMALY AI PROJECT LOGIC (Default): 
-     * Stays exactly the same to avoid breaking your floor price sync.
-     */
+    // ANOMALY AI LOGIC
     const searchParams = new URLSearchParams(params);
     searchParams.delete("slug");
     const qs = searchParams.toString() ? "?" + searchParams.toString() : "";
     url = `https://api.opensea.io/api/v2/listings/collection/${slug}/all${qs}`;
   }
+
+  console.log("FINAL API URL:", url);
 
   try {
     const r = await fetch(url, { 
