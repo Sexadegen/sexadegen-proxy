@@ -4,7 +4,7 @@ exports.handler = async function(event, context) {
   const API_KEY = "cae072efedf0460d80b57358fcbb5a5e";
   const params = event.queryStringParameters || {};
   const slug = params.slug || "anomaly-ai";
-  const tokenIds = params.token_ids; // e.g., "2137,2138"
+  const tokenIds = params.token_ids; // e.g., "1661,2137"
 
   // 1. ANOMALY AI LOGIC (Backward Compatible)
   if (!tokenIds) {
@@ -26,28 +26,37 @@ exports.handler = async function(event, context) {
     }
   }
 
-  // 2. ROVERS LOGIC (The New Precise Way)
+  // 2. ROVERS LOGIC (Marketplace/Price Logic)
   const idList = tokenIds.split(',').map(id => id.trim());
-  const contractAddress = "0xe0e7f149959c6cac0ddc2cb4ab27942bffda1eb4";
 
   try {
-    // Fetch each rare ID specifically from the single NFT endpoint
+    /** * We use the 'best listing' endpoint because the standard NFT metadata 
+     * endpoint does NOT include current prices.
+     */
     const promises = idList.map(async (id) => {
-      const singleUrl = `https://api.opensea.io/api/v2/chain/ethereum/contract/${contractAddress}/nfts/${id}`;
-      const res = await fetch(singleUrl, { 
+      const priceUrl = `https://api.opensea.io/api/v2/listings/collection/${slug}/nfts/${id}/best`;
+      
+      const res = await fetch(priceUrl, { 
         headers: { "X-API-KEY": API_KEY, "accept": "application/json" } 
       });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.nft; // OpenSea returns { nft: { ... } }
+
+      if (!res.ok) return null; // Likely not listed
+      
+      const data = await res.json();
+      
+      // We format this to match your frontend expectation
+      return {
+        identifier: id,
+        price_data: data.price // This contains the 'current.value' (Wei)
+      };
     });
 
-    const nfts = (await Promise.all(promises)).filter(item => item !== null);
+    const results = (await Promise.all(promises)).filter(item => item !== null);
 
     return {
       statusCode: 200,
       headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
-      body: JSON.stringify({ nfts }), // Wrap it in 'nfts' to match your frontend logic
+      body: JSON.stringify({ nfts: results }), 
     };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
